@@ -4,3 +4,4 @@ requests
 openai>=1.0.0
 jinja2
 gunicorn
+python-telegram-bot
