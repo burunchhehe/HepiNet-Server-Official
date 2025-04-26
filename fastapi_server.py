@@ -13,9 +13,11 @@ TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
 openai.api_key = OPENAI_API_KEY
 
-@app.get("/", response_class="HTMLResponse")
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
 async def home():
-    return "<h1>환영합니다! 여기는 HepiNet 서버입니다!</h1>"
+    return HTMLResponse(content="<h1>환영합니다! 여기는 HepiNet 서버입니다!</h1>")
 
 def ask_gpt(question):
     response = openai.ChatCompletion.create(
