@@ -49,16 +49,21 @@ def search_youtube_video(query):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     return video_url
 
-
     
     user_question_count = {}
 MAX_QUESTIONS = 10
 
-@app.post("/webhook")
+
+    @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    chat_id = str(data["message"]["chat"]["id"])
+    chat_id = data["message"]["chat"]["id"]
     text = data["message"]["text"]
+    
+    answer = ask_gpt(text)
+    send_message(chat_id, answer)
+    
+    return {"ok": True}
 
     # 사용자 질문횟수 초기화
     if chat_id not in user_question_count:
