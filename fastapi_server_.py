@@ -52,17 +52,20 @@ def search_youtube_video(query):
     
     user_question_count = {}
 MAX_QUESTIONS = 10
-
-
-    @app.post("/webhook")
+    
+@app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
     chat_id = data["message"]["chat"]["id"]
     text = data["message"]["text"]
-    
-    answer = ask_gpt(text)
+
+    # 텍스트 안에 "유튜브" 또는 "영상"이라는 단어가 포함되어 있으면 유튜브 검색
+    if "유튜브" in text or "영상" in text:
+        answer = search_youtube_video(text)
+    else:
+        answer = ask_gpt(text)
+
     send_message(chat_id, answer)
-    
     return {"ok": True}
 
     # 사용자 질문횟수 초기화
