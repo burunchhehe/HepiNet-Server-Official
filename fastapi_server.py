@@ -10,16 +10,27 @@ app = FastAPI()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
-openai.api_key = OPENAI_API_KEY
+# 최신 OpenAI 클라이언트 사용
+openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# 사용자 질문 수를 저장할 딕셔너리
 user_question_count = {}
 MAX_QUESTIONS = 10
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
     return "<h1>환영합니다! 여기는 HepiNet 서버입니다!</h1>"
+
+def ask_gpt(question, model="gpt-4"):
+    response = openai_client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "당신은 부동산 경매 전문 코치입니다. 항상 한국어로 답변하세요."},
+            {"role": "user", "content": question}
+        ]
+    )
+    return response.choices[0].message.content
 
 def send_message(chat_id, text):
     url = f"{TELEGRAM_URL}/sendMessage"
@@ -29,20 +40,8 @@ def send_message(chat_id, text):
     }
     requests.post(url, json=payload)
 
-def ask_gpt(question, model="gpt-4"):
-    response = openai.ChatCompletion.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "당신은 부동산 경매 전문 코치입니다. 항상 한국어로 답변하세요."},
-            {"role": "user", "content": question}
-        ]
-    )
-    return response['choices'][0]['message']['content']
-
 def search_youtube_video(query):
-    youtube_api_key = os.getenv("YOUTUBE_API_KEY")
-    url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key={youtube_api_key}&type=video"
-
+    url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key={YOUTUBE_API_KEY}&type=video"
     response = requests.get(url)
     items = response.json().get('items')
 
@@ -61,29 +60,25 @@ async def telegram_webhook(request: Request):
         chat_id = str(data["message"]["chat"]["id"])
         text = data["message"]["text"]
 
-        # 사용자 질문횟수 초기화
         if chat_id not in user_question_count:
             user_question_count[chat_id] = 0
 
-        # 질문횟수에 따라 모델 선택
         if user_question_count[chat_id] < MAX_QUESTIONS:
             model = "gpt-4"
         else:
             model = "gpt-3.5-turbo"
 
-        # 유튜브 관련이면 유튜브 검색
+        # 유튜브 검색 요청이면
         if "유튜브" in text or "영상" in text:
             answer = search_youtube_video(text)
         else:
-            answer = ask_gpt(text, model)
+            answer = ask_gpt(text, model=model)
 
-        # 질문횟수 증가
         user_question_count[chat_id] += 1
         remaining = MAX_QUESTIONS - user_question_count[chat_id]
-        if remaining < 0:
+        if remaining <= 0:
             remaining = "무제한 (GPT 3.5 버전 사용)"
 
-        # 답변 보내기
         final_answer = f"{answer}\n\n(오늘 남은 질문: {remaining})"
         send_message(chat_id, final_answer)
 
