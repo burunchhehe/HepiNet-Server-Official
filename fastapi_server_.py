@@ -16,32 +16,40 @@ openai.api_key = OPENAI_API_KEY
 async def home():
     return "<h1>환영합니다! 여기는 HepiNet 서버입니다!</h1>"
 
-@app.post("/ask")
-async def ask_gpt(question: str = Form(...)):
+def ask_gpt(question):
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4",
         messages=[
-            {"role": "system", "content": "당신은 부동산 경매 전문가입니다."},
+            {"role": "system", "content": "당신은 부동산 경매 전문 코치입니다. 항상 한국어로 답변하세요."},
             {"role": "user", "content": question}
         ]
     )
-    return {"answer": response['choices'][0]['message']['content']}
-
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    data = await request.json()
-    chat_id = data["message"]["chat"]["id"]
-    text = data["message"]["text"]
-
-    # 텔레그램 봇에 받은 메세지 다시 보내기
-    send_message(chat_id, f"받은 메세지: {text}")
-
-    return {"ok": True}
+    return response['choices'][0]['message']['content']
 
 def send_message(chat_id, text):
     url = f"{TELEGRAM_URL}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
     requests.post(url, json=payload)
+    
+    
+def search_youtube_video(query):
+    youtube_api_key = os.getenv("YOUTUBE_API_KEY")  # 환경변수에서 유튜브 키 읽어옴
+    url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key={youtube_api_key}&type=video"
+
+    response = requests.get(url)
+    items = response.json().get('items')
+
+    if not items:
+        return "유튜브에서 결과를 찾을 수 없습니다."
+
+    video_id = items[0]['id']['videoId']
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    return video_url
+
+
     
     user_question_count = {}
 MAX_QUESTIONS = 10
