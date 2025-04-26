@@ -56,10 +56,14 @@ MAX_QUESTIONS = 10
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
+
+    if "message" not in data or "text" not in data["message"]:
+        return {"ok": False}
+
     chat_id = data["message"]["chat"]["id"]
     text = data["message"]["text"]
 
-    # 사용자 질문 횟수 초기화
+    # 사용자 질문횟수 초기화
     if chat_id not in user_question_count:
         user_question_count[chat_id] = 0
 
@@ -69,29 +73,29 @@ async def telegram_webhook(request: Request):
     else:
         model = "gpt-3.5-turbo"
 
-    # 텍스트 안에 유튜브 관련 요청이 있는지 확인
+    # 텍스트 안에 "유튜브" 또는 "영상" 단어가 있으면 유튜브 검색
     if "유튜브" in text or "영상" in text:
         answer = search_youtube_video(text)
     else:
-        # GPT에게 질문
         response = openai.ChatCompletion.create(
             model=model,
             messages=[
-                {"role": "system", "content": "당신은 부동산 경매 전문 코치입니다. 항상 한국어로 답변하세요."},
+                {"role": "system", "content": "당신은 부동산 경매 전문 비서입니다. 사용자의 요청을 정확히 분석해서 필요한 작업을 찾아야 합니다."},
                 {"role": "user", "content": text}
             ]
         )
         answer = response['choices'][0]['message']['content']
 
-    # 질문 횟수 업데이트
+    # 사용자 질문횟수 +1
     user_question_count[chat_id] += 1
+
+    # 남은 질문 횟수 계산
     remaining = MAX_QUESTIONS - user_question_count[chat_id]
     if remaining < 0:
-        remaining = "무제한 (GPT-3.5 버전 사용)"
+        remaining = "무제한 (GPT 3.5 버전 사용)"
 
-    final_answer = f"{answer}\n\n(오늘 남은 질문 수: {remaining})"
-    
-    # 텔레그램으로 답변 보내기
+    # 텔레그램으로 최종 답변 보내기
+    final_answer = f"{answer}\n\n(오늘 남은 질문: {remaining})"
     send_message(chat_id, final_answer)
 
     return {"ok": True}
